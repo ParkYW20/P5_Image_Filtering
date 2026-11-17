@@ -1,0 +1,9 @@
+test_file,clean_file,degradation,param
+noise_gauss20_camera.png,camera.png,gauss,20
+noise_gauss20_astronaut.png,astronaut.png,gauss,20
+noise_gauss20_coffee.png,coffee.png,gauss,20
+noise_sp5_camera.png,camera.png,sp,0.05
+noise_sp5_astronaut.png,astronaut.png,sp,0.05
+blur_g2_camera.png,camera.png,blur,2.0
+blur_g2_chelsea.png,chelsea.png,blur,2.0
+blur_g2_text_shapes.png,text_shapes.png,blur,2.0
