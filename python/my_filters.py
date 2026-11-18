@@ -63,7 +63,7 @@ def _odd(k):
         raise ValueError('kernel size must be a positive odd integer')
     return k
 
- # 영환 파트
+# 영환 파트
 def conv2d(img, kernel):
     """Direct convolution: float64, same shape, edge replication, flipped kernel."""
     x, h = np.asarray(img, dtype=float), np.asarray(kernel, dtype=float)
@@ -144,7 +144,6 @@ def conv2d_separable(img, k1d):
             result[i, j] = np.sum(padded[i:i+K, j] * kernel)
 
     return result
-
 
 def median_filter(img, k):
     k = _odd(k)
