@@ -1,0 +1,145 @@
+
+import os
+import sys
+import time
+import numpy as np
+import matplotlib.pyplot as plt
+
+# --------------------------------------------------
+# 1. 모듈 불러오기
+# --------------------------------------------------
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+
+import my_filters as M
+import img_utils as U
+
+# --------------------------------------------------
+# 2. 실험 이미지 불러오기
+# --------------------------------------------------
+
+img = U.read_gray(
+    os.path.join(U.DATA, "images_clean", "camera.png")
+)
+
+H, W = img.shape
+
+# 커널 크기
+kernel_sizes = [3, 5, 7, 9]
+
+# 실행 시간 측정 횟수
+REPEAT = 7
+
+# --------------------------------------------------
+# 3. 실행 시간 측정 함수
+# --------------------------------------------------
+
+def measure_time(func, repeat=7):
+
+    # 사전 실행 (초기 실행 오버헤드 완화)
+    func()
+
+    times = []
+
+    for _ in range(repeat):
+        start = time.perf_counter()
+        result = func()
+        elapsed = time.perf_counter() - start
+        times.append(elapsed)
+    return np.median(times), result
+
+# --------------------------------------------------
+# 4. 실험
+# --------------------------------------------------
+
+results = []
+
+print("\n===== Convolution Performance Comparison =====")
+print(f"Image Size: {H} x {W}")
+
+for k in kernel_sizes:
+    # 일반 2D 커널
+    kernel_2d = M.box_kernel(k)
+    # 분리형 1D 커널
+    kernel_1d = np.ones(k) / k
+    # 2D Convolution 실행 시간
+    t_2d, y_2d = measure_time(
+        lambda: M.conv2d(img, kernel_2d), REPEAT
+    )
+    # Separable Convolution 실행 시간
+    t_sep, y_sep = measure_time(
+        lambda: M.conv2d_separable(img, kernel_1d), REPEAT
+    )
+    # 이론적 곱셈 연산량
+    mul_2d = H * W * (k ** 2)
+    mul_sep = H * W * (2 * k)
+    # 연산량 감소율
+    reduction = (1 - mul_sep / mul_2d) * 100
+    # 실행 시간 개선 비율
+    speedup = t_2d / t_sep
+    # 출력 결과 차이
+    error = np.max(np.abs(y_2d - y_sep))
+
+    results.append({
+        "k": k,
+        "t_2d": t_2d,
+        "t_sep": t_sep,
+        "mul_2d": mul_2d,
+        "mul_sep": mul_sep,
+        "reduction": reduction,
+        "speedup": speedup,
+        "error": error
+    })
+
+    print(f"\nKernel Size: {k} x {k}")
+    print(f"2D Time       : {t_2d:.6f} s")
+    print(f"Separable Time: {t_sep:.6f} s")
+    print(f"2D Multiplications       : {mul_2d:,}")
+    print(f"Separable Multiplications: {mul_sep:,}")
+    print(f"Operation Reduction: {reduction:.2f}%")
+    print(f"Speedup: {speedup:.2f}x")
+    print(f"Maximum Error: {error:.2e}")
+
+# --------------------------------------------------
+# 5. 결과 그래프
+# --------------------------------------------------
+
+ks = [r["k"] for r in results]
+t2d = [r["t_2d"] for r in results]
+tsep = [r["t_sep"] for r in results]
+mul2d = [r["mul_2d"] for r in results]
+mulsep = [r["mul_sep"] for r in results]
+
+# (1) 실행 시간 비교
+plt.figure(figsize=(7, 4))
+plt.plot(ks, t2d, marker="o", label="2D Convolution")
+plt.plot(ks, tsep, marker="s", label="Separable Convolution")
+plt.xlabel("Kernel Size (K)")
+plt.ylabel("Execution Time (s)")
+plt.title("Execution Time vs. Kernel Size")
+plt.xticks(ks)
+plt.legend()
+plt.grid(alpha=0.3)
+
+plt.savefig("execution_time.png", dpi=150)
+plt.close()
+
+# (2) 곱셈 연산량 비교
+plt.figure(figsize=(7, 4))
+plt.plot(ks, mul2d, marker="o", label="2D Convolution")
+plt.plot(ks, mulsep, marker="s", label="Separable Convolution")
+plt.xlabel("Kernel Size (K)")
+plt.ylabel("Total Multiplications")
+plt.title("Operation Count vs. Kernel Size")
+
+plt.xticks(ks)
+plt.legend()
+plt.grid(alpha=0.3)
+
+plt.savefig("operation_count.png", dpi=150)
+plt.close()
+
+print("\n===== Experiment Completed =====")
+print("Saved: execution_time.png")
+print("Saved: operation_count.png")

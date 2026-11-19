@@ -1,0 +1,156 @@
+
+import os
+import sys
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 현재 파일과 동일한 폴더의 모듈 불러오기
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+
+import my_filters as M
+import img_utils as U
+
+# --------------------------------------------------
+# 1. 실험 이미지 불러오기
+# --------------------------------------------------
+
+tests = U.load_test_list()
+
+# Gaussian Noise가 적용된 camera 이미지 선택
+target = next(
+    (t for t in tests
+     if t["degradation"] == "gauss"
+     and t["test_file"].startswith("noise_gauss20_camera")),
+    None
+)
+
+if target is None:
+    print("실험 대상 이미지를 찾을 수 없습니다.")
+    print("사용 가능한 Gaussian Noise 이미지:")
+
+    for t in tests:
+        if t["degradation"] == "gauss":
+            print(t["test_file"])
+
+    raise SystemExit
+
+# 잡음이 없는 원본 이미지
+clean = U.read_gray(
+    os.path.join(U.DATA, "images_clean", target["clean_file"])
+)
+
+# Gaussian Noise가 적용된 이미지
+noisy = U.read_gray(
+    os.path.join(U.DATA, "images_test", target["test_file"])
+)
+
+# --------------------------------------------------
+# 2. 실험 조건 설정
+# --------------------------------------------------
+
+kernel_sizes = [3, 5, 7, 9]
+
+# 원본 이미지의 선명도
+original_sharpness = U.sharpness(clean)
+results = []
+
+# 잡음 이미지 자체의 성능
+input_psnr = U.psnr(clean, noisy)
+input_sharpness = U.sharpness(noisy) / original_sharpness
+
+print("\n===== Box Filter Kernel Size Experiment =====")
+print(f"Test Image : {target['test_file']}")
+print(f"Image Size : {clean.shape}")
+print("\n{:<12}{:>12}{:>18}".format(
+    "Kernel Size", "PSNR [dB]", "Sharpness Ratio"
+))
+print("{:<12}{:>12.3f}{:>18.3f}".format(
+    "No Filter", input_psnr, input_sharpness
+))
+
+# --------------------------------------------------
+# 3. 커널 크기별 필터링 및 성능 평가
+# --------------------------------------------------
+
+output_dir = os.path.join(HERE, "..", "results_box_kernel")
+os.makedirs(output_dir, exist_ok=True)
+
+for k in kernel_sizes:
+    # Box Filter 생성
+    kernel = M.box_kernel(k)
+    # 2D Convolution 수행
+    filtered = M.conv2d(noisy, kernel)
+    # PSNR 계산 (원본 이미지 기준)
+    psnr_value = U.psnr(clean, filtered)
+    # 원본 대비 선명도 비율
+    sharpness_ratio = (
+        U.sharpness(filtered) / original_sharpness
+    )
+
+    results.append((k, psnr_value, sharpness_ratio))
+
+    print("{:<12}{:>12.3f}{:>18.3f}".format(
+        f"{k} x {k}", psnr_value, sharpness_ratio
+    ))
+
+    # 필터링 결과 이미지 저장
+    U.save_gray(
+        os.path.join(output_dir, f"box{k}.png"),
+        filtered
+    )
+
+# --------------------------------------------------
+# 4. PSNR 그래프
+# --------------------------------------------------
+
+ks = [r[0] for r in results]
+psnrs = [r[1] for r in results]
+sharpness = [r[2] for r in results]
+
+plt.figure(figsize=(7, 4))
+plt.plot(ks, psnrs, marker="o")
+plt.xticks(ks)
+plt.xlabel("Kernel Size (K)")
+plt.ylabel("PSNR (dB)")
+plt.title("PSNR vs. Box Filter Kernel Size")
+plt.grid(alpha=0.3)
+
+plt.savefig(
+    os.path.join(output_dir, "psnr_vs_kernel.png"),
+    dpi=150,
+    bbox_inches="tight"
+)
+plt.close()
+
+# --------------------------------------------------
+# 5. 선명도 그래프
+# --------------------------------------------------
+
+plt.figure(figsize=(7, 4))
+plt.plot(ks, sharpness, marker="o")
+plt.xticks(ks)
+plt.xlabel("Kernel Size (K)")
+plt.ylabel("Sharpness Ratio")
+plt.title("Sharpness vs. Box Filter Kernel Size")
+plt.grid(alpha=0.3)
+
+plt.savefig(
+    os.path.join(output_dir, "sharpness_vs_kernel.png"),
+    dpi=150,
+    bbox_inches="tight"
+)
+plt.close()
+
+# --------------------------------------------------
+# 6. 최적 커널 크기 출력
+# --------------------------------------------------
+
+best = max(results, key=lambda x: x[1])
+
+print("\n===== Experimental Result =====")
+print(f"Best Kernel Size : {best[0]} x {best[0]}")
+print(f"Maximum PSNR     : {best[1]:.3f} dB")
+print(f"Sharpness Ratio  : {best[2]:.3f}")
+
+print(f"\nResults saved to: {os.path.abspath(output_dir)}")
