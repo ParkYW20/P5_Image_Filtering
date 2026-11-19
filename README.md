@@ -34,6 +34,18 @@
 | `conv2d_separable(img, k1d)` | (선택) 분리형 컨볼루션 | 속도 비교에 사용 |
 | `median_filter(img, k)` / `median_filter_direct` | (선택) 메디안 필터 — 비선형 | 소금·후추 잡음 비교에 사용 |
 
+### Python 실행
+
+저장소 최상위 폴더에서 다음 명령을 실행합니다.
+
+```sh
+python -m pip install -r requirements.txt
+python python/evaluate_filters.py --out results
+```
+
+터미널에서 구현 검증, PSNR, 선명도비, 실행 시간을 확인할 수 있습니다.
+결과 그림은 `results/`에 저장됩니다. 기본 평가기의 시간은 단회 측정값입니다.
+
 ## 4. 평가 스크립트가 보여 주는 것
 
 - **구현 검증:** 비대칭 커널로 라이브러리 컨볼루션과 비교 (커널을 뒤집지 않으면 '상관'이라고 알려 줌), 커널 합·대칭성,

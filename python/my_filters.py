@@ -12,52 +12,6 @@ P5 영상 필터링 — 학생 구현 파일 (TODO를 채우세요)
 import numpy as np
 
 
-# def conv2d(img, kernel):
-#     """
-#     2D 컨볼루션 (same 크기, edge 복제 경계).
-#     힌트(빠른 방법): 패딩한 영상에서 커널 원소 개수만큼 '밀린 영상'을 잘라 가중합
-#           for i, j in 커널 위치:  y += h_flipped[i, j] * xpad[i : i+H, j : j+W]
-#     """
-#     # TODO
-#     raise NotImplementedError("conv2d")
-
-
-# def box_kernel(k):
-#     """k x k 평균 필터 (모든 원소 1/k²)"""
-#     # TODO
-#     raise NotImplementedError("box_kernel")
-
-
-# def gaussian_kernel(sigma, size=None):
-#     """
-#     2D 가우시안 커널: h[i, j] ∝ exp(-(i² + j²) / (2σ²)),  합이 1이 되도록 정규화
-#     size 가 None 이면 size = 2*ceil(3σ) + 1 (±3σ 까지 포함)
-#     """
-#     # TODO
-#     raise NotImplementedError("gaussian_kernel")
-
-
-# def unsharp_mask(img, sigma, alpha):
-#     """
-#     언샤프 마스킹(샤프닝): y = x + alpha · (x - blur(x)),   blur = 가우시안(sigma)
-#     (x - blur(x)) 가 고주파 성분 → 이를 alpha 배 더해 에지를 강조.  결과는 0~255로 자르기
-#     """
-#     # TODO
-#     raise NotImplementedError("unsharp_mask")
-
-
-# # ------------------------------------------------------------------ 선택 과제
-# def conv2d_separable(img, k1d):
-#     """(선택) 분리 가능한 커널 h = k1d ⊗ k1d 를 1D 컨볼루션 두 번(가로, 세로)으로 → 연산량 K² → 2K"""
-#     raise NotImplementedError("conv2d_separable (선택)")
-
-
-# def median_filter(img, k):
-#     """(선택) k x k 메디안 필터 (비선형, edge 복제 경계). 소금·후추 잡음에 강함"""
-#     raise NotImplementedError("median_filter (선택)")
-
-
-# 가중치 행렬 생성 코드 
 def _odd(k):
     if not isinstance(k, (int, np.integer)) or k < 1 or k % 2 != 1:
         raise ValueError('kernel size must be a positive odd integer')
@@ -76,36 +30,6 @@ def box_kernel(k):
     """k x k 평균 필터 (모든 원소 1/k²)"""
     return np.ones((k, k), dtype=np.float64) / (k * k)
     
-
-def conv2d_separable(img, k1d):
-    """(선택) 분리 가능한 커널 h = k1d ⊗ k1d 를 1D 컨볼루션 두 번(가로, 세로)으로 → 연산량 K² → 2K"""
-    img = np.asarray(img, dtype=float)
-    k1d = np.asarray(k1d, dtype=float)
-
-    H, W = img.shape
-    K = len(k1d)
-    pad = K // 2
-
-    kernel = k1d[::-1]
-
-    # 1. 가로 방향 Convolution
-    padded = np.pad(img, ((0, 0), (pad, pad)), mode="edge")
-    temp = np.zeros_like(img)
-
-    for i in range(H):
-        for j in range(W):
-            temp[i, j] = np.sum(padded[i, j:j+K] * kernel)
-
-    # 2. 세로 방향 Convolution
-    padded = np.pad(temp, ((pad, pad), (0, 0)), mode="edge")
-    result = np.zeros_like(img)
-
-    for i in range(H):
-        for j in range(W):
-            result[i, j] = np.sum(padded[i:i+K, j] * kernel)
-
-    return result
-
 
 def unsharp_mask(img, sigma, alpha):
     """2D 흑백 영상 -> 같은 크기의 float64 영상, 최종 값 범위 0~255.
@@ -143,10 +67,13 @@ def conv2d(img, kernel):
 
 # 선택 과제 2개 
 def conv2d_separable(img, k1d):
-    k = np.asarray(k1d, dtype=float)
-    if k.ndim != 1: raise ValueError('expected 1D kernel')
-    _odd(len(k))
-    return conv2d(conv2d(img, k[None,:]), k[:,None])
+    """분리 가능한 커널을 가로와 세로 1D 컨볼루션으로 적용한다."""
+    kernel = np.asarray(k1d, dtype=float)
+    if kernel.ndim != 1:
+        raise ValueError('expected 1D kernel')
+    _odd(len(kernel))
+    horizontal = conv2d(img, kernel[None, :])
+    return conv2d(horizontal, kernel[:, None])
 
 
 def median_filter(img, k):
